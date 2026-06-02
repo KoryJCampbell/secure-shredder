@@ -6,3 +6,17 @@ compile_commands.json
 *.obj
 *.exe
 *.dSYM/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Env
+.env
+.env.local
+!.env.example
