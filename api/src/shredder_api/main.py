@@ -7,12 +7,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from shredder_api import __version__
 from shredder_api.db import get_session
+from shredder_api.routes import jobs, upload
 
 app = FastAPI(
     title="Shredder API",
     version=__version__,
     description="NIST 800-88 file sanitization orchestration layer.",
 )
+
+app.include_router(upload.router)
+app.include_router(jobs.router)
 
 
 class HealthResponse(BaseModel):

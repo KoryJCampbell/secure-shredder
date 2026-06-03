@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     api_host: str = "127.0.0.1"
     api_port: int = 8000
     engine_binary: Path = Path("../engine/build/shredder")
+    inbox_dir: Path = Path("/tmp/shredder-inbox")  # noqa: S108 - dev default
+    max_upload_bytes: int = 500 * 1024 * 1024  # 500 MiB
 
 
 @lru_cache(maxsize=1)
