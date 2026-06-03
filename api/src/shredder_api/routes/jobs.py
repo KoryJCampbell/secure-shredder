@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
@@ -6,11 +7,12 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from shredder_api.config import Settings, get_settings
 from shredder_api.db import get_session
-from shredder_api.enums import JobStatus
+from shredder_api.enums import JobStatus, ShredMode
 from shredder_api.models import Job
 from shredder_api.schemas import JobDetail
-from shredder_api.services.dummy_progress import stream_dummy_progress
+from shredder_api.services.engine_runner import stream_engine_progress
 
 router = APIRouter(tags=["jobs"], prefix="/jobs")
 
@@ -34,6 +36,7 @@ async def get_job(
 async def stream_job(
     job_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> StreamingResponse:
     job = (
         await session.execute(select(Job).where(Job.id == job_id))
@@ -49,7 +52,13 @@ async def stream_job(
         )
 
     return StreamingResponse(
-        stream_dummy_progress(session, job_id),
+        stream_engine_progress(
+            session=session,
+            job_id=job_id,
+            engine_binary=Path(settings.engine_binary).resolve(),
+            temp_path=Path(job.temp_path),
+            mode=ShredMode(job.mode),
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

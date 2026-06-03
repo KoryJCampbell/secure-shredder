@@ -1,6 +1,8 @@
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from shredder_api import __version__
 from shredder_api.db import get_session
 from shredder_api.routes import jobs, upload
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(
     title="Shredder API",
@@ -17,6 +21,11 @@ app = FastAPI(
 
 app.include_router(upload.router)
 app.include_router(jobs.router)
+
+
+@app.get("/", include_in_schema=False)
+async def index() -> FileResponse:
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 class HealthResponse(BaseModel):

@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SHREDDER // NIST 800-88</title>
+<style>
+  :root {
+    --bg: #0a0c0d;
+    --bg-2: #11151a;
+    --line: #1f2a32;
+    --fg: #d7e4ec;
+    --dim: #6b7c88;
+    --amber: #ffb000;
+    --amber-dim: #b07800;
+    --green: #6fcf97;
+    --red: #ff5d5d;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--fg); margin: 0; padding: 0; font-family: var(--mono); }
+  body { padding: 28px 22px 80px; max-width: 980px; margin: 0 auto; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 22px; display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  header h1 { font-size: 16px; margin: 0; letter-spacing: 0.18em; color: var(--amber); text-transform: uppercase; }
+  header .meta { font-size: 11px; color: var(--dim); letter-spacing: 0.1em; }
+  .panel { background: var(--bg-2); border: 1px solid var(--line); padding: 18px; margin-bottom: 20px; }
+  .panel h2 { font-size: 11px; letter-spacing: 0.2em; color: var(--amber-dim); margin: 0 0 14px; text-transform: uppercase; }
+  label { display: block; font-size: 11px; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  input[type=file], select, input[type=text] {
+    width: 100%; padding: 10px 12px; background: var(--bg); color: var(--fg);
+    border: 1px solid var(--line); font-family: var(--mono); font-size: 13px;
+  }
+  input[type=file]::-webkit-file-upload-button {
+    background: var(--bg-2); color: var(--amber); border: 1px solid var(--line);
+    padding: 6px 10px; font-family: var(--mono); margin-right: 10px; cursor: pointer;
+  }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .row.three { grid-template-columns: 1fr 1fr 1fr; }
+  button {
+    background: var(--amber); color: #000; border: 0; padding: 12px 22px;
+    font-family: var(--mono); font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; cursor: pointer; font-size: 13px;
+  }
+  button:hover:not(:disabled) { background: #ffc233; }
+  button:disabled { background: var(--line); color: var(--dim); cursor: not-allowed; }
+  .progress-wrap { height: 24px; background: var(--bg); border: 1px solid var(--line); position: relative; overflow: hidden; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, var(--amber-dim), var(--amber)); width: 0%; transition: width 0.2s; }
+  .progress-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; letter-spacing: 0.1em; color: var(--fg); mix-blend-mode: difference; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 14px; }
+  .stat { font-size: 11px; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; }
+  .stat strong { display: block; font-size: 16px; color: var(--fg); letter-spacing: 0; text-transform: none; margin-top: 4px; }
+  .log {
+    background: #06080a; border: 1px solid var(--line); padding: 12px;
+    height: 220px; overflow-y: auto; font-size: 11.5px; line-height: 1.5; white-space: pre-wrap;
+  }
+  .log .e-pass_started { color: var(--amber); }
+  .log .e-pass_finished { color: var(--green); }
+  .log .e-summary { color: var(--green); font-weight: 700; }
+  .log .e-failed { color: var(--red); font-weight: 700; }
+  .log .e-progress { color: var(--dim); }
+  .stamp {
+    display: none; border: 4px solid var(--green); color: var(--green);
+    padding: 12px 22px; font-size: 28px; letter-spacing: 0.3em; font-weight: 800;
+    transform: rotate(-6deg); width: max-content; margin: 22px auto 0;
+  }
+  .stamp.fail { border-color: var(--red); color: var(--red); }
+  .stamp.visible { display: block; }
+  .sha { font-size: 10.5px; color: var(--dim); word-break: break-all; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>▌ Shredder // NIST 800-88 Sanitizer</h1>
+    <span class="meta">v0.1.0 // local-only</span>
+  </header>
+
+  <section class="panel" id="upload-panel">
+    <h2>1. Intake</h2>
+    <form id="upload-form">
+      <div class="row">
+        <div>
+          <label for="file">File</label>
+          <input id="file" name="file" type="file" required>
+        </div>
+        <div>
+          <label for="mode">Mode</label>
+          <select id="mode" name="mode">
+            <option value="clear">CLEAR — 1 pass random</option>
+            <option value="purge" selected>PURGE — NIST 800-88 (3 pass)</option>
+            <option value="destroy">DESTROY — Gutmann (35 pass)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="operator">Operator</label>
+          <input id="operator" name="operator" type="text" placeholder="kory@local" value="kory@local">
+        </div>
+        <div>
+          <label for="reason">Reason</label>
+          <input id="reason" name="reason" type="text" placeholder="e.g. EOL / classified draft / dup">
+        </div>
+      </div>
+      <button type="submit" id="submit-btn">▶ Sanitize</button>
+    </form>
+  </section>
+
+  <section class="panel" id="progress-panel" style="display:none">
+    <h2>2. Live Pass</h2>
+    <div class="progress-wrap">
+      <div class="progress-bar" id="bar"></div>
+      <div class="progress-label" id="bar-label">0%</div>
+    </div>
+    <div class="stats">
+      <div class="stat">Status<strong id="s-status">—</strong></div>
+      <div class="stat">Pass<strong id="s-pass">—</strong></div>
+      <div class="stat">Speed<strong id="s-speed">—</strong></div>
+      <div class="stat">Elapsed<strong id="s-elapsed">—</strong></div>
+    </div>
+  </section>
+
+  <section class="panel" id="log-panel" style="display:none">
+    <h2>3. Event Log</h2>
+    <div class="log" id="log"></div>
+    <div class="sha" id="sha"></div>
+    <div class="stamp" id="stamp">SANITIZED</div>
+  </section>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const log = (event) => {
+  const line = document.createElement("div");
+  line.className = "e-" + (event.event || "x");
+  line.textContent = "» " + JSON.stringify(event);
+  $("log").appendChild(line);
+  $("log").scrollTop = $("log").scrollHeight;
+};
+
+$("upload-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("submit-btn").disabled = true;
+  $("progress-panel").style.display = "block";
+  $("log-panel").style.display = "block";
+  $("log").innerHTML = "";
+  $("stamp").classList.remove("visible", "fail");
+  $("sha").textContent = "";
+  $("bar").style.width = "0%";
+  $("bar-label").textContent = "0%";
+  $("s-status").textContent = "uploading";
+
+  const form = new FormData($("upload-form"));
+  const t0 = Date.now();
+
+  let job;
+  try {
+    const res = await fetch("/upload", { method: "POST", body: form });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      log({ event: "failed", detail: err.detail });
+      $("s-status").textContent = "rejected";
+      $("stamp").textContent = "REJECTED";
+      $("stamp").classList.add("visible", "fail");
+      $("submit-btn").disabled = false;
+      return;
+    }
+    job = await res.json();
+  } catch (err) {
+    log({ event: "failed", detail: String(err) });
+    $("submit-btn").disabled = false;
+    return;
+  }
+
+  log({ event: "uploaded", job_id: job.job_id, size: job.file_size_bytes, sha256_pre: job.sha256_pre });
+  $("sha").textContent = "SHA-256 (pre): " + job.sha256_pre;
+  $("s-status").textContent = "queued";
+
+  const es = new EventSource(`/jobs/${job.job_id}/stream`);
+  const tick = setInterval(() => {
+    $("s-elapsed").textContent = ((Date.now() - t0) / 1000).toFixed(1) + "s";
+  }, 100);
+
+  es.onmessage = (msg) => {
+    let evt;
+    try { evt = JSON.parse(msg.data); } catch { return; }
+    log(evt);
+
+    switch (evt.event) {
+      case "queued":
+      case "shredding":
+        $("s-status").textContent = evt.event;
+        break;
+      case "pass_started":
+        $("s-pass").textContent = `${evt.pass}/${evt.total_passes} (${evt.pattern})`;
+        break;
+      case "progress":
+        if (evt.total_bytes > 0) {
+          const passPct = evt.bytes_written / evt.total_bytes;
+          const passNum = parseInt($("s-pass").textContent) || 1;
+          const totalPasses = parseInt($("s-pass").textContent.split("/")[1]) || 1;
+          const overall = ((passNum - 1 + passPct) / totalPasses) * 100;
+          $("bar").style.width = overall.toFixed(1) + "%";
+          $("bar-label").textContent = overall.toFixed(1) + "%";
+        }
+        $("s-speed").textContent = evt.speed_mbps.toFixed(0) + " MB/s";
+        break;
+      case "pass_finished":
+        break;
+      case "summary":
+        $("bar").style.width = "100%";
+        $("bar-label").textContent = "100%";
+        $("s-status").textContent = evt.status;
+        $("s-elapsed").textContent = (evt.elapsed_ms / 1000).toFixed(2) + "s";
+        $("stamp").textContent = "SANITIZED";
+        $("stamp").classList.add("visible");
+        clearInterval(tick);
+        es.close();
+        $("submit-btn").disabled = false;
+        break;
+      case "failed":
+        $("s-status").textContent = "failed";
+        $("stamp").textContent = "FAILED";
+        $("stamp").classList.add("visible", "fail");
+        clearInterval(tick);
+        es.close();
+        $("submit-btn").disabled = false;
+        break;
+    }
+  };
+
+  es.onerror = () => {
+    clearInterval(tick);
+    es.close();
+    $("submit-btn").disabled = false;
+  };
+});
+</script>
+</body>
+</html>
